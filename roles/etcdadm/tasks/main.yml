@@ -6,7 +6,15 @@
     mode: 0755
 
 - name: etcdadm | Initialize first etcd member
-  command: "timeout -k 600s 600s /usr/bin/etcdadm init --name {{ inventory_hostname }} --release-url {{ etcd_release_url }} --version {{ etcd_version }} {% if etcdadm_debug|bool %} -l debug {% endif %}"
+  command: >-
+    timeout -k 600s 600s /usr/bin/etcdadm init --name {{ inventory_hostname }}
+    {% if etcd_release_url|length > 0 %}
+    --release-url {{ etcd_release_url }}
+    {% endif %}
+    --version {{ etcd_version }}
+    {% if etcdadm_debug|bool %}
+    -l debug
+    {% endif %}
   register: etcdadm_init_res
   when: inventory_hostname == groups['etcd']|first
   failed_when: etcdadm_init_res.rc != 0
@@ -42,7 +50,16 @@
   when: inventory_hostname != groups['etcd']|first
 
 - name: etcdadm | join etcd member
-  command: "timeout -k 600s 600s /usr/bin/etcdadm join https://{{ hostvars[groups['etcd'][0]]['ansible_ssh_host'] }}:2379 --name {{ inventory_hostname }} --release-url {{ etcd_release_url }} --version {{ etcd_version }} {% if etcdadm_debug|bool %} -l debug {% endif %}"
+  command: >-
+    timeout -k 600s 600s /usr/bin/etcdadm join https://{{ hostvars[groups['etcd'][0]]['ansible_ssh_host'] }}:2379
+    --name {{ inventory_hostname }}
+    {% if etcd_release_url|length > 0 %}
+    --release-url {{ etcd_release_url }}
+     {% endif %}
+    --version {{ etcd_version }}
+    {% if etcdadm_debug|bool %}
+    -l debug
+    {% endif %}
   register: etcdadm_join_res
   failed_when: etcdadm_join_res.rc != 0
   when: inventory_hostname != groups['etcd']|first
