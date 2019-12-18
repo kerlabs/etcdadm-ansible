@@ -1,0 +1,8 @@
+etcdadm_release_url: "/root/etcdadm"
+etcdadm_version: v0.1.2
+etcdadm_debug: true
+etcdadm_install_dir: "/opt/bin"
+etcdadm_certs_dir: "/etc/etcd/pki"
+
+etcd_release_url: ""
+etcd_version: 3.3.18
