@@ -1,0 +1,22 @@
+- hosts: etcd
+  gather_facts: false
+  serial: 1
+  tasks:
+    - name: reset | check if etcdadm has already installed
+      stat:
+        path: "/usr/bin/etcdadm"
+      register: etcdadm_already_installed
+
+    - name: reset | remove etcd member from cluster
+      command: "/usr/bin/etcdadm reset"
+      when: etcdadm_already_installed.stat.exists
+
+    - name: reset | rm etcdadm cache dir
+      file:
+        path: "/var/cache/etcdadm"
+        state: absent
+
+    - name: reset | rm etcdadm binary
+      file:
+        path: "/usr/bin/etcdadm"
+        state: absent
