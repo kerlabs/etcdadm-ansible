@@ -1,9 +1,24 @@
 ---
-- name: etcdadm | download etcdadm binary
-  copy:
+- name: etcdadm | download etcdadm binary from filesystem
+  unarchive:
     src: "{{ etcdadm_release_url }}"
     dest: "/usr/bin"
     mode: 0755
+  when: "'http://' not in etcdadm_release_url and 'https://' not in etcdadm_release_url"
+
+- name: etcdadm | download etcdadm binary from http(s)
+  block:
+    - name: etcdadm | download etcdadm binary
+      get_url:
+        url: "{{ etcdadm_release_url }}"
+        dest: "/tmp/etcdadm.tar.gz"
+        mode: 0644
+    - name: etcdadm | unarchive etcdadm
+      unarchive:
+        src: "/tmp/etcdadm.tar.gz"
+        dest: "/usr/bin"
+        mode: 0755
+  when: "'http://' in etcdadm_release_url or 'https://' in etcdadm_release_url"
 
 - name: etcdadm | Initialize first etcd member
   command: >-
@@ -50,27 +65,27 @@
   when: inventory_hostname != groups['etcd']|first
 
 - name: etcdadm | join etcd member
-  command: >-
-    timeout -k 600s 600s /usr/bin/etcdadm join https://{{ hostvars[groups['etcd'][0]]['ansible_ssh_host'] }}:2379
-    --name {{ inventory_hostname }}
-    {% if etcd_release_url|length > 0 %}
-    --release-url {{ etcd_release_url }}
-     {% endif %}
-    --version {{ etcd_version }}
-    {% if etcdadm_debug|bool %}
-    -l debug
-    {% endif %}
-  register: etcdadm_join_res
-  failed_when: etcdadm_join_res.rc != 0
+  block:
+    - name: etcdadm | join etcd member by timeout 600s
+      command: >-
+        timeout -k 600s 600s /usr/bin/etcdadm join https://{{ hostvars[groups['etcd'][0]]['ansible_ssh_host'] }}:2379
+        --name {{ inventory_hostname }}
+        {% if etcd_release_url|length > 0 %}
+        --release-url {{ etcd_release_url }}
+         {% endif %}
+        --version {{ etcd_version }}
+        {% if etcdadm_debug|bool %}
+        -l debug
+        {% endif %}
+      register: etcdadm_join_res
+      failed_when: etcdadm_join_res.rc != 0
+    - name: etcdadm | wait for etcd running on local member
+      command: "{{ etcdadm_install_dir }}/etcdctl.sh endpoint health --cluster -w table"
+      register: etcd_endpoint_health_res
+      until: "etcd_endpoint_health_res.rc == 0"
+      retries: 30
+      delay: 5
+    - debug:
+        msg: "{{ etcd_endpoint_health_res.stdout }}"
   when: inventory_hostname != groups['etcd']|first
-
-- name: etcdadm | wait for etcd running on local member
-  command: "{{ etcdadm_install_dir }}/etcdctl.sh endpoint health --cluster -w table"
-  register: etcd_endpoint_health_res
-  until: "etcd_endpoint_health_res.rc == 0"
-  retries: 30
-  delay: 5
-
-- debug:
-    msg: "{{ etcd_endpoint_health_res.stdout }}"
 
