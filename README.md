@@ -1,4 +1,4 @@
-# etcd-ansible
+# etcdadm-ansible
 Create etcd cluster with etcdadm via ansible
 
 ## Usage
